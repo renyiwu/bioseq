@@ -15,7 +15,7 @@ rename 's/_S.*gz/.fastq.gz/' *.fastq.gz
 #eg, C75_S1_R1_001_.fastq.gz to C75.fastq.gz
 
 #1 hisat2
-for i in *.fastq.gz; do hisat2 -p 6 -x /path/to/hisat2/index/ -U $i | samtools view -bh -o ${i%.fastq.gz}.bam -; done
+for i in *.fastq.gz; do hisat2 -p 6 -x /path/to/hisat2/index/ -U $i | samtools view -bh -o ${i%.fastq.gz}.bam -; done #note: piping to samtolls reqires version 1.15 or above. The last "-" (dash) may be ommitted.
 
 #2 concatnate
 samtools cat -o RW04.bam RW04?.bam
