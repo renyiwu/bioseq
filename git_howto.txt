@@ -16,3 +16,10 @@ git commit -m "any messages here"
 git remote add origin https://github.com/renyiwu/anyrepository.git
 #4, push (upload) files
 git push -u origin master
+
+#to discard changes to local files so them could be updated (overwritten) to the lastest (online) version.
+git stash --keep-index
+git reset
+
+#now 
+git push origin master
