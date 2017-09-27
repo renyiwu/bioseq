@@ -9,6 +9,16 @@
 rename 's/_S.*gz/.fastq.gz/' *.fastq.gz
 #eg, C75_S1_R1_001_.fastq.gz to C75.fastq.gz
 
+###################################
+#Use below all-in-one script to get cov files (use samtools for deduplication).
+#
+for i in *.fastq.gz; do ~/tools/Bismark/bismark --multicore 1 --basename ${i%.fastq.gz} --parallel 1 --ambiguous --ambig_bam ~/genomes/Mus_musculus/UCSC/mm10/Sequence/Bismark/ $i; samtools sort @6 --output-fmt SAM ${i%.fastq.gz}.bam | samtools rmdup -s --output-fmt SAM - - | python ../tools/DMRfinder/extract_CpG_data.py -i - -o ${i%.fastq.gz}.cov; done
+#
+###################################
+#Or use step by step commands below:
+#
+#
+
 #1, align reads (fastq file) to genome with bismark (v0.18 or v0.16_patched)
 time for i in *.fastq.gz; do ~/tools/Bismark/bismark --multicore 1 --basename ${i%.fastq.gz} --parallel 1 --ambiguous --ambig_bam ~/genomes/Mus_musculus/UCSC/mm10/Sequence/Bismark/ $i; done 
 #NOTE: 1, Changes paths to bismark and genome accordingly. 2, change --parallel value to 5 or more if run on a workstation with enough RAM (eg, 64 GB), in this case --basename option should be dropped. 
