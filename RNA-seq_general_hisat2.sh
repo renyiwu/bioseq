@@ -56,7 +56,7 @@ for i in RW??.fastq.gz; do zcat $i | echo $((`wc -l`/4)); done
 for i in *.fastq.gz; do hisat2 -p 6 -x ~/genome/mm10/genome -U $i | samtools sort -@ 6 --output-fmt SAM | samtools rmdup -s --output-fmt BAM - ${i%.fastq.gz}.rmdup.bam; done && featureCounts --primary -T 8 -a ~/genome/mm10/genes.gtf -o featurecounts.results.csv *dup.bam
 
 #########################################################
-#Further analyses with counting results by featureCounts:
+#Further analyses with count results by featureCounts:
 #Run in R
 R
 library(DESeq2)
