@@ -1,5 +1,9 @@
-#RNAs-seq workflow. R Wu Sept 2017
+#RNAs-seq workflow. 
+#R Wu Sept 2017
+# Revised on April 24, 2018. Added [-k 1] and [--mm] flag for hisat2. and added [-p] for featureCounts
+
 #Hisat2 -> picard -> feartureCounts
+
 #########################
 #This version uses Hisat2
 #########################
@@ -18,6 +22,18 @@ rename 's/_S.*gz/.fastq.gz/' *.fastq.gz
 #1 hisat2
 for i in *.fastq.gz; do hisat2 -p 6 -x /path/to/hisat2/index/ -U $i | samtools view -bh -o ${i%.fastq.gz}.bam -; done #note: piping to samtolls reqires version 1.15 or above. The last "-" (dash) may be ommitted.
 
+# For paired end sequences,
+for i in 1 2 3 4 5; do
+echo -e "Working on sample C$i ... \t"; \
+i1=$(echo -n `ls C"$i"_*_L001_R1_001.fastq.gz`,`ls C"$i"_*_L002_R1_001.fastq.gz`,`ls C"$i"_*_L003_R1_001.fastq.gz`,`ls C"$i"_*_L004_R1_001.fastq.gz`); \
+i2=$(echo -n `ls C"$i"_*_L001_R2_001.fastq.gz`,`ls C"$i"_*_L002_R2_001.fastq.gz`,`ls C"$i"_*_L003_R2_001.fastq.gz`,`ls C"$i"_*_L004_R2_001.fastq.gz`); \
+hisat2 -p 6 -x ~/genomes/Mus_musculus/UCSC/mm10/Hisat2_Genome/genome -k 1 --mm -t --un-gz ./ht2reports/C"$i".k1_un.sam.gz --al-gz ./ht2reports/C"$i".k1_al.sam.gz --summary-file ./ht2reports/C"$i".k1_sum.txt --met-file ./ht2reports/C"$i".k1_met.txt -1 $i1 -2 $i2 | \
+samtools view -bh -o ./bam/C"$i".k1.bam; \
+echo "Sample C$ik1 done."; \
+done
+# [-k 1] limits the number of maximum alignments to 1 for each read.
+# [--mm] sets the memory mapping so many hisat2 instances can share the genome reference index. 
+
 #2 concatnate
 samtools cat -o RW04.bam RW04?.bam
 
@@ -33,6 +49,9 @@ for i in *.sorted.bam; do samtools rmdup -s $i ${i%.sorted.bam}.rmdup.bam; done
 #5 FeatureCounts
 featureCounts --primary -T 8 -a /path/to/genes.gtf -o featurecounts.results.csv *dup.bam
 
+#5.1 for paired end sequences, 
+featureCounts --primary -p -T -a /path/to/genes.gtf -o featurecounts.results.csv *dup.bam
+# [-p] counts fragments instead of reads. i.e., a pair (of reads) will be counted as 1 (fragment) instead of 2 (reads).
 
 ###### one line command for all:
 
