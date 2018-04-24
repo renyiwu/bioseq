@@ -43,8 +43,11 @@ for i in *.bam; do samtools sort -@ 6 -o ${i%.bam}.sorted.bam $i; done
 #4 deduplicate
 #picard
 for i in *.sorted.bam; do java -jar ~/tools/picard-2.10.5/picard.jar MarkDuplicates I=$i O=${i%.sorted.bam}.dedup.bam M=${i%.sorted.bam}.dedup.txt REMOVE_DUPLICATES=true; done
+
 #or samtools
-for i in *.sorted.bam; do samtools rmdup -s $i ${i%.sorted.bam}.rmdup.bam; done
+for i in *.sorted.bam; do samtools rmdup -s $i ${i%.sorted.bam}.rmdup.bam; done #Do NOT use -s for paired end data
+for i in *.sorted.bam; do samtools rmdup $i ${i%.sorted.bam}.rmdup.bam; done # For paired end sequences.
+
 
 #5 FeatureCounts
 featureCounts --primary -T 8 -a /path/to/genes.gtf -o featurecounts.results.csv *dup.bam
