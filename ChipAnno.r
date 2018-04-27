@@ -9,8 +9,8 @@ version <- '0.1'
 copyright <- 'Copyright (C) 2018 R Wu'
 
 printVersion <- function() {
-  cat('ChipAnno.r', version, '\n')
-  cat(copyright. '\n')
+  cat('ChipAnno.r Version', version, '\n')
+  cat(copyright, '\n')
   q()
 }
 
