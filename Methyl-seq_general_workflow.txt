@@ -26,11 +26,11 @@ time for i in *.fastq.gz; do ~/tools/Bismark/bismark --multicore 1 --basename ${
 #2, Remove duplicates and extract CpGs.
 	
 #Option A: (This method requres a lot of RAM. It typically costs 35 GB of RAM to proccess a 3.3 GB bam file (70% unique reads).
-#dedup by findDup5.py by John.
+#dedup by findDup5.py by John. (does not work on huge file. memory leak)
 for i in *.bam; do samtools view -h $i | python ../tools/DMRfinder/findDups5.py - - | python ../tools/DMRfinder/extract_CpG_data.py -i - -o ${i%.bam}.cov; done
 
 #Option B:
-#Dedup by samtools.
+#Dedup by samtools. (does not work on paired-end reads)
 for i in *.bam; do samtools sort -o ${i%.bam}.sorted.bam $i; samtools rmdup -s ${i%.bam}.sorted.bam ${i%.bam}.rmdup.bam; samtools view -h ${i%.bam}.rmdup.bam | python ../tools/DMRfinder/extract_CpG_data.py -i - -o ${i%.bam}.cov; done
 # or below to discard intermediate files.
 for i in *.bam; do samtools sort -o ${i%.bam}.sorted.bam $i; samtools rmdup -s ${i%.bam}.sorted.bam ${i%.bam}.rmdup.bam; rm ${i%.bam}.sorted.bam; samtools view -h ${i%.bam}.rmdup.bam | python ../tools/DMRfinder/extract_CpG_data.py -i - -o ${i%.bam}.cov; rm ${i%.bam}.rmdup.bam; done
@@ -44,7 +44,7 @@ for i in *.bam; do samtools sort -o ${i%.bam}.sorted.bam $i; java -jar ~/tools/p
 python ../../DMRfinder/combine_CpG_sites.py -o combined.csv *.cov
 
 #4, DMRfinder
-Rscript ../../DMRfinder/findDMRs.r -i combined.csv -o results.csv -n Control,Model,Treatment sample1.cov,sample2.cov sample3.cov,sample4.cov sample5.cov,sample6.cov
+Rscript ../../DMRfinder/findDMRs.r -i combined.csv -o results.csv -n Control,Model,Treatment sample1,sample2 sample3,sample4 sample5,sample6
 #source("https://bioconductor.org/biocLite.R")
 #biocLite("DSS"
 
