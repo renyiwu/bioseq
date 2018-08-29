@@ -5,8 +5,18 @@
 
 # A wrapper for adding gene features to DMR data with Chipseeker package.
 
-version <- '0.1'
+version <- '0.2'
 copyright <- 'Copyright (C) 2018 R Wu'
+
+changelog <- function() {
+  cat('---Change log---
+      v0.2:
+      set level default to "gene"
+      ')
+  q()
+}
+
+
 
 printVersion <- function() {
   cat('ChipAnno.r Version', version, '\n')
@@ -15,10 +25,10 @@ printVersion <- function() {
 }
 
 usage <- function() {
-  cat('Usage: Rscript ChipAnno.r  -x <genome>  -i <input>  -o <output> 
-    -i <input>    File to be read
-    -o <output>   Output file to save. Keep the same as -i to override.
-    -x <genome>  Gene annotation file with file name ending in .gtf
+  cat('Usage: Rscript ChipAnno.r  -x <genome>  -i <input>  -o <output>
+	-x <genome>  Gene annotation file with file name ending in .gtf
+	-i <input>    input file to read.
+ 	-o <output>   Output file to save. Keep the same as -i to override.
 ')
   q()
 }
@@ -27,7 +37,7 @@ usage <- function() {
 
 # default args/parameters
 infile <- outfile <- genome <- NULL
- 
+
 # get CL args
 args <- commandArgs(trailingOnly=T)
 i <- 1
@@ -72,18 +82,31 @@ if (is.null(genome)) {
   usage()
 }
 
-##
+#####
+# genome <- "~/genomes/Homo_Sapiens/UCSC/hg19/Annotation/Genes/genes.gtf"
+# infile <- "~/Methyl-seq_rucdr/combined_fr5c5_Yen.csv"
+# outfile <- "~/Methyl-seq_rucdr/combined_fr5c5_yen_test1.csv"
+# #####
+
+
 library(GenomicFeatures)
 library(ChIPseeker)
 txdb <- makeTxDbFromGFF(genome, format='gtf')
 peak <- readPeakFile(infile)
-peakAnno <- annotatePeak(peak, TxDb=txdb)
-# add annotations
-peak2 <- read.table(infile, header=T)
-peak2 <- peak2[peak2$chr!="chrM",] #This is necessary for some files...
-peak2$feature <- peakAnno@anno$annotation
-peak2$distance <- peakAnno@anno$distanceToTSS
-peak2$gene <- peakAnno@anno$geneId
 
+peakAnno <- annotatePeak(peak,
+                         TxDb=txdb,
+                         level = "gene")
+out <- as.data.frame(peakAnno)
+out$strand <- NULL
+out$geneChr <- NULL
 
-write.table(peak2, outfile, sep='\t', quote=F, row.names=F)
+# head(peakAnno@anno, 1)
+# # add annotations
+# peak2 <- read.table(infile, header=T)
+# peak2 <- peak2[peak2$chr!="chrM",] #This is necessary for some files...
+# peak2$feature <- peakAnno@anno$annotation
+# peak2$distance <- peakAnno@anno$distanceToTSS
+# peak2$gene <- peakAnno@anno$geneId
+
+write.table(out, outfile, sep='\t', quote=F, row.names = F)
