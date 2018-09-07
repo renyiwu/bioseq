@@ -2,14 +2,14 @@
 #  v 0.3
 # Renyi Wu, 2018
 #  
-# Usage: in terminal, cd to the path of fastq files, then run "bash /path/to/fastqc-0.x.sh"
+# Usage: in terminal, cd to the path of fastq files, then run "bash /path/to/fastqc-0.x.sh [file [more files] ]"
 # This file needs not to be in the same directory of your fastq files.
 
 # cd "$(dirname "$0")" #or cd "${0%/*}" or cd "${0%/*}"
 #Run FastQC,optional
 
 [ -d FastQC_reports_auto ] || mkdir FastQC_reports_auto  # make directory if not exists.
-if [ -z "$@" ]
+if [ -z "$1" ]
 then
  fastqc --extract --outdir=./FastQC_reports_auto/ *.gz
 else
