@@ -9,11 +9,11 @@
 #Run FastQC,optional
 
 [ -d FastQC_reports_auto ] || mkdir FastQC_reports_auto  # make directory if not exists.
-if [ -z "$1" ]
+if [ -z "$@" ]
 then
  fastqc --extract --outdir=./FastQC_reports_auto/ *.gz
 else
- fastqc --extract --outdir=./FastQC_reports_auto/ $1
+ fastqc --extract --outdir=./FastQC_reports_auto/ $@
 fi
  
 #echo "done"
