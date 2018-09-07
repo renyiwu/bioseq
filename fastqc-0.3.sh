@@ -28,6 +28,6 @@ grep "#Total Deduplicated Percentage" "$i" >>fastqc_reads_for_all.txt
 grep "#Duplication Level" "$i" >>fastqc_reads_for_all.txt
 #grep "^1\t" "$i" >>fastqc_reads_for_all.txt
 awk '/^1\t/{n++}n==5{print; exit}' "$i" >>fastqc_reads_for_all.txt
-echo "\n" >>fastqc_reads_for_all.txt
+echo >>fastqc_reads_for_all.txt
 done
 #read -n1 -r -p "Press any key to quit" key
