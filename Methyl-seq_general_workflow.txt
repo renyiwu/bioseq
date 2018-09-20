@@ -1,138 +1,56 @@
 #Methyl-seq general workflow:
 #R Wu
-#Sept 2017
+#Sept 2018
 
 #0.1 Build index for bismark. 
-#perl ./Bismark/bismark_genome_preparation ../genomes/Mus_musculus/UCSC/mm10/Sequence/Bismark/
+#perl ./Bismark/bismark_genome_preparation /path/to/genomes/Mus_musculus/UCSC/mm10/
 
-#0.2 Rename (shorten) fastq file names if needed.
-rename 's/_S.*gz/.fastq.gz/' *.fastq.gz
-#eg, C75_S1_R1_001_.fastq.gz to C75.fastq.gz
+#1, sequencing adapter trimming
+trim_galore --paired --trim1  sample1_R1.fastq.gz sample1_R2.fastq.gz # for paired-end reads
+# or below for single end reads
+trim_galore --trim1 sample1_R1.fastq.gz
 
-###################################
-#Use below all-in-one script to get cov files (use samtools for deduplication).
-#
-for i in *.fastq.gz; do ~/tools/Bismark/bismark --multicore 1 --basename ${i%.fastq.gz} --parallel 1 --ambiguous --ambig_bam ~/genomes/Mus_musculus/UCSC/mm10/Sequence/Bismark/ $i; samtools sort @6 --output-fmt SAM ${i%.fastq.gz}.bam | samtools rmdup -s --output-fmt SAM - - | python ../tools/DMRfinder/extract_CpG_data.py -i - -o ${i%.fastq.gz}.cov; done
-#
-###################################
-#Or use step by step commands below:
-#
-#
+#2, align reads (fastq files)
+#Single end reads
+for i in *.fastq.gz; do bismark --multicore 4  --ambiguous --ambig_bam /path/to/genome/ $i; done
 
-#1, align reads (fastq file) to genome with bismark (v0.18 or v0.16_patched)
-time for i in *.fastq.gz; do ~/tools/Bismark/bismark --multicore 1 --basename ${i%.fastq.gz} --parallel 1 --ambiguous --ambig_bam ~/genomes/Mus_musculus/UCSC/mm10/Sequence/Bismark/ $i; done 
-#NOTE: 1, Changes paths to bismark and genome accordingly. 2, change --parallel value to 5 or more if run on a workstation with enough RAM (eg, 64 GB), in this case --basename option should be dropped. 
-
-#2, Remove duplicates and extract CpGs.
-	
-#Option A: (This method requres a lot of RAM. It typically costs 35 GB of RAM to proccess a 3.3 GB bam file (70% unique reads).
-#dedup by findDup5.py by John. (does not work on huge file. memory leak)
-for i in *.bam; do samtools view -h $i | python ../tools/DMRfinder/findDups5.py - - | python ../tools/DMRfinder/extract_CpG_data.py -i - -o ${i%.bam}.cov; done
-
-#Option B:
-#Dedup by samtools. (does not work on paired-end reads)
-for i in *.bam; do samtools sort -o ${i%.bam}.sorted.bam $i; samtools rmdup -s ${i%.bam}.sorted.bam ${i%.bam}.rmdup.bam; samtools view -h ${i%.bam}.rmdup.bam | python ../tools/DMRfinder/extract_CpG_data.py -i - -o ${i%.bam}.cov; done
-# or below to discard intermediate files.
-for i in *.bam; do samtools sort -o ${i%.bam}.sorted.bam $i; samtools rmdup -s ${i%.bam}.sorted.bam ${i%.bam}.rmdup.bam; rm ${i%.bam}.sorted.bam; samtools view -h ${i%.bam}.rmdup.bam | python ../tools/DMRfinder/extract_CpG_data.py -i - -o ${i%.bam}.cov; rm ${i%.bam}.rmdup.bam; done
-
-#Option C:
-#Dedup by Picard.
-for i in *.bam; do samtools sort -o ${i%.bam}.sorted.bam $i; java -jar ~/tools/picard-2.10.5/picard.jar MarkDuplicates I=${i%.bam}.sorted.bam O=${i%.bam}.rmdup.bam M=${i%.bam}.markdup.txt REMOVE_DUPLICATES=true; rm ${i%.bam}.sorted.bam; samtools view -h ${i%.bam}.rmdup.bam | python ../tools/DMRfinder/extract_CpG_data.py -i - -o ${i%.bam}.cov; rm ${i%.bam}.rmdup.bam; done
- 
-
-#3, combine cov files.
-python ../../DMRfinder/combine_CpG_sites.py -o combined.csv *.cov
-
-#4, DMRfinder
-Rscript ../../DMRfinder/findDMRs.r -i combined.csv -o results.csv -n Control,Model,Treatment sample1,sample2 sample3,sample4 sample5,sample6
-#source("https://bioconductor.org/biocLite.R")
-#biocLite("DSS"
-
-#Gene annotation with ChIPseeker.
-R
-source("https://bioconductor.org/biocLite.R")
-biocLite("GenomicFeatures")
-library(GenomicFeatures)
-txdb <- makeTxDbFromGFF('/path/to/Annotation/Genes/genes.gtf', format='gtf', organism='Mus musculus')
-library(ChIPseeker)
-peak <- readPeakFile('results.csv')
-peakAnno <- annotatePeak(peak, TxDb=txdb)
-# add annotations
-peak2 <- read.table('results.csv', header=T)
-peak2 <- peak2[peak2$chr!="chrM",] #This is essential for some cases.
-peak2$feature <- peakAnno@anno$annotation
-peak2$distance <- peakAnno@anno$distanceToTSS
-peak2$gene <- peakAnno@anno$geneId
-write.table(peak2, 'results_anno.csv', sep='\t', quote=F, row.names=F)
-#or 
-write.table(peak2, 'results_anno_T.csv', sep='\t', quote=T, row.names=F)
-
-#check "github.com/renyiwu/rw2017/source/annotate with ChIPseeker_yue.r" for more.
-#below adopted on 27/9/2017
-#
-
-###Gene annotation with ChIPseeker.
-#Renyi Wu 7-12-2017
-#Credits to Davit, John...
-#
-#1, if input file has calculated methyl diff data, i.e. output of DMRfinder.r, use this script:
-# source("https://bioconductor.org/biocLite.R")
-# biocLite("GenomicFeatures")
-# biocLite("ChIPseeker")
-#biocLite("matrixStats")
-#biocLite("rtracklayer")
-#biocLite("TxDb.Hsapiens.UCSC.hg19.knownGene")
-#biocLite("Rcpp")
+# For paired-end reads
+bismark --multicore 4  --ambiguous --ambig_bam /path/to/genome/ -1 sample1_R1.fastq.gz -2 sample1_R2.fastq.gz; done
 
 
-library(GenomicFeatures)
-txdb <- makeTxDbFromGFF('Genes/genes.gtf', format='gtf', organism='Mus musculus')
-library(ChIPseeker)
-peak <- readPeakFile('data/yue/dmr_yue_2nd_dedup.csv')
-peak <- readPeakFile('data/yue/dmr_yue_2nd_ori.csv')#results.csv is the output of DMRfinder.r 
-peakAnno <- annotatePeak(peak, TxDb=txdb)
-# add annotations to results.csv
-peak2 <- read.table('data/yue/dmr_yue_2nd_dedup.csv', sep = "\t", header=T)
-peak2 <- read.table('data/yue/dmr_yue_2nd_ori.csv', sep = "\t", header=T)
-peak2 <- peak2[peak2$chr!="chrM",]
-peak2$gene <- peakAnno@anno$geneId
-peak2$feature <- peakAnno@anno$annotation
-peak2$distance <- peakAnno@anno$distanceToTSS
-#Save output file.
-write.table(peak2, 'data/yue/dmr_yue_2nd_dedup_anno.csv', sep='\t', quote=T, row.names=F) #Use "quote=T" to avoid format issues.
-write.table(peak2, 'data/yue/dmr_yue_2nd_ori_anno.csv', sep='\t', quote=T, row.names=F) #Use "quote=T" to avoid format issues.
+#3, Remove duplicates and extract CpGs.
 
-#2, if input file has only combined counts of all groups, i.e., output of Combine_CpG.py, use this script:
-com1 <- read.table("data/shan_methyl/jb6_combined.csv", header = T, sep = "\t")
-com1 <- com1[com1$chr!="chrM",] #remove chromosome M, required.
-com1$S1.mu <- com1$S1.X/com1$S1.N 
-com1$S2.mu <- com1$S2.X/com1$S2.N
-com1$S3.mu <- com1$S2.X/com1$S3.N
-com1$S4.mu <- com1$S2.X/com1$S4.N
-com1$S5.mu <- com1$S2.X/com1$S5.N
-com1$S6.mu <- com1$S2.X/com1$S6.N
-#Add more as necessary.
-com1$S2_S1.diff <- com1$S2.mu - com1$S1.mu
-com1$S3_S2.diff <- com1$S3.mu - com1$S2.mu
-com1$S4_S2.diff <- com1$S4.mu - com1$S2.mu
-com1$S5_S2.diff <- com1$S5.mu - com1$S2.mu
-com1$S6_S2.diff <- com1$S6.mu - com1$S2.mu
-#Add more as necessary.
-#
-write.table(com1, "data/combined-M.csv", sep='\t', quote=T, row.names=F) #Use "quote=T" to avoid format issues.
-#
-library(GenomicFeatures)
-txdb <- makeTxDbFromGFF('/path/to/your/gtf/file/Mus_musculus_UCSC_mm9.2/Mus_musculus/UCSC/mm9/Annotation/Genes/genes.gtf') #, format='gtf', organism='Mus musculus')
-library(ChIPseeker)
-peak <- readPeakFile('data/combined-M.csv') #Or read from "data/combined.csv"
-peakAnno <- annotatePeak(peak, TxDb=txdb)
-# add annotations
-peak2 <- read.table('data/combined-M.csv', sep = "\t", header=T)
-peak2$gene <- peakAnno@anno$geneId
-peak2$feature <- peakAnno@anno$annotation
-peak2$distance <- peakAnno@anno$distanceToTSS
-peak2$geneLenth <- peakAnno@anno$geneLength
-peak2$geneStrand <- peakAnno@anno$geneStrand
-#Save output file.
-write.table(peak2, 'data/combined_anno_2.csv', sep='\t', quote=T, row.names=F) #Use "quote=T" to avoid format issues.
+# Option A. Dedup by Picard. (Recommended)
+samtools sort -o sample1.sorted.bam sample1.bam && java -jar /path/to/picard.jar MarkDuplicates I=sample1.sorted.bam O=sample1.rmdup.bam M=sample1.markdup.txt REMOVE_DUPLICATES=true
+
+# Option B. Dedup by Bismark_dedup (Slower than Opthion A)
+~/tools/Bismark/deduplicate_bismark -p --output_dir ./ --bam sample*.bam
+
+# Option C. dedup by samtools. (only for single end reads)
+samtools sort -o sample1.sorted.bam sample1.bam && samtools rmdup -s sample1.sorted.bam smaple1.rmdup.bam
+
+#4. Extract coverage
+samtools view -h sample1.rmdup.bam | python ~/tools/DMRfinder/extract_CpG_data.py -i - -o sample1.cov
+
+
+#5, combine cov files.
+python /path/to/DMRfinder/combine_CpG_sites.py -o combined.csv sample*.cov
+
+#6, DMRfinder
+Rscript /path/to/DMRfinder/findDMRs.r -i combined.csv -o combined_dmr.csv -n Control,Model,Treatment sample1,sample2 sample3,sample4 sample5,sample6
+
+#7. Annotation
+Rscript /path/to/ChipAnno.r -x /path/to/genes.gtf -i combined_dmr.csv -o combined_dmr_anno.csv
+
+
+
+#############
+# Bismark on github
+https://github.com/FelixKrueger/Bismark
+
+# DMRfinder on github
+https://github.com/jsh58/DMRfinder
+
+# ChipAnno.r on github
+https://github.com/renyiwu/bioseq/blob/master/ChipAnno.r
 
