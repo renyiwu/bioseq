@@ -39,8 +39,9 @@ for i in *.sorted.bam; do samtools rmdup $i ${i%.sorted.bam}.rmdup.bam; done # F
 featureCounts --primary -T 8 -a /path/to/genes.gtf -o featurecounts.results.csv *dup.bam
 
 #for paired end sequences, 
-featureCounts --primary -p -T -a /path/to/genes.gtf -o featurecounts.results.csv *dup.bam
+featureCounts --primary -p -T 8 -a /path/to/genes.gtf -o featurecounts.results.csv *dup.bam
 # [-p] counts fragments instead of reads. i.e., a pair (of reads) will be counted as 1 (fragment) instead of 2 (reads).
+# [-T 8] uses 8 threats. change the number accordingly.
 
 
 
