@@ -8,6 +8,10 @@
 
 #1, sequencing adapter trimming
 trim_galore --paired --trim1  sample1_R1.fastq.gz sample1_R2.fastq.gz # for paired-end reads
+# parallel
+time parallel -j 8 trim_galore --paired --trim1 {}R1_001.fastq.gz {}R2_001.fastq.gz ::: $(ls *R1*fastq.gz | sed 's/R1_001.fastq.gz//') 
+
+
 # or below for single end reads
 trim_galore --trim1 sample1_R1.fastq.gz
 
