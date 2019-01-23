@@ -58,6 +58,7 @@ featureCounts --primary -p -T 8 -a /path/to/genes.gtf -o featurecounts.results.c
 # [-T 8] uses 8 threats. change the number accordingly.
 
 ############################
+
 # one line for PE reads on SOP-1482
 time ( parallel -j 8 trim_galore --paired --trim1 {}R1_001.fastq.gz {}R2_001.fastq.gz ::: $(ls *R1*fastq.gz | sed 's/R1_001.fastq.gz//') && for i in *val_1.fq.gz; do ( hisat2 -p 6 -x ~/genomes/Mus_musculus/UCSC/mm10/Hisat2_Genome/genome -k 1 -1 ${i} -2 ${i%R1_001_val_1.fq.gz}R2_001_val_2.fq.gz | samtools view -bh -o ${i%_R1_001_val_1.fq.gz}.bam ); done && for i in *.bam; do samtools sort -@ 6 -o ${i%.bam}.sorted.bam $i; done && for i in *.sorted.bam; do java -jar ~/tools/picard/picard.jar MarkDuplicates I=$i O=${i%.sorted.bam}.dedup.bam M=${i%.sorted.bam}.dedup.txt REMOVE_DUPLICATES=true; done && featureCounts --primary -p -T 8 -a ~/genomes/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf  -o featurecounts.results.csv *dup.bam )
 
