@@ -26,7 +26,7 @@ time ( parallel -j 6 fastqc -o fastqc {} ::: fastq/*.gz && parallel -j 6 trim_ga
 
 # 3b. One-line command for single end (SE) reads. Change reference genome and annotation files.
 
-time ( parallel -j 6 fastqc -o fastqc {} ::: fastq/*.gz && parallel -j 6 trim_galore -o temp --fastqc --fastqc_args \"-o fastqc\" --trim1 {} ::: fastq/*fastq.gz) && for i in temp/*val_1.fq.gz; do ( hisat2 -p 6 -x ~/genomes/Homo_sapiens/UCSC/hg19/Hisat2_Genome/genome -k 1 -U ${i} | samtools view -bh -o ${i%.fq.gz}.bam ); done && for i in temp/*.bam; do samtools sort -@ 6 -o ${i%.bam}.sorted.bam $i; done && parallel -j 4 java -jar ~/tools/picard/picard.jar MarkDuplicates I={} O={.}.dedup.bam M={.}.dedup.txt REMOVE_DUPLICATES=true ::: temp/*.sorted.bam && featureCounts --primary -p -T 8 -a ~/genomes/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.gtf  -o output/featurecounts.results$(date +%Y%m%d-%H%M%S).csv temp/*dup.bam )
+time ( parallel -j 6 fastqc -o fastqc {} ::: fastq/*.gz && parallel -j 6 trim_galore -o temp --fastqc --fastqc_args \"-o fastqc\" --trim1 {} ::: fastq/*fastq.gz && for i in temp/*_trimmed.fq.gz; do ( hisat2 -p 6 -x ~/genomes/Homo_sapiens/UCSC/hg19/Hisat2_Genome/genome -k 1 -U ${i} | samtools view -bh -o ${i%.fq.gz}.bam ); done && for i in temp/*.bam; do samtools sort -@ 6 -o ${i%.bam}.sorted.bam $i; done && parallel -j 4 java -jar ~/tools/picard/picard.jar MarkDuplicates I={} O={.}.dedup.bam M={.}.dedup.txt REMOVE_DUPLICATES=true ::: temp/*.sorted.bam && featureCounts --primary -T 8 -a ~/genomes/Homo_sapiens/UCSC/hg19/Annotation/Genes/genes.gtf  -o output/featurecounts.results$(date +%Y%m%d-%H%M%S).csv temp/*dup.bam )
 
 
 
