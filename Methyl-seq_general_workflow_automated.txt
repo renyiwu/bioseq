@@ -1,0 +1,32 @@
+#Methyl-seq pipeline bismark -> DMRfinder all-in-one
+# trim_galore -> hisat2 -> picard -> featureCounts
+# parallel on sop-1482 which has 64 GB of RAM. (max picard instance is 4)
+# template is for mouse mm10. Change if work on other species.
+# R Wu. Feb 2019
+
+
+
+
+# FIRST TIME RUN ONLY. Build index for bismark. 
+# bismark_genome_preparation /path/to/genomes/Mus_musculus/UCSC/mm10/
+
+
+# 0. Create a work directory eg, ~/project/ then cd to it.
+# 1. create folders
+mkdir fastq fastqc temp output
+
+# 2. link fastq files
+ln -s /path/to/folder/*.gz fastq/
+# check
+ls fastq/*.gz | wc -l
+# this should report the total number of files.
+
+
+
+# 3a. oneline command for paired-end (PE) reads. mouse genome and reference as example.
+time ( parallel -j 6 fastqc -o fastqc {} ::: fastq/*.gz && parallel -j 6 trim_galore -o temp --fastqc --fastqc_args \"-o fastqc\" --paired --trim1 {}R1_001.fastq.gz {}R2_001.fastq.gz ::: $(ls fastq/*R1*fastq.gz | sed 's/R1_001.fastq.gz//') && for i in temp/*val_1.fq.gz; do bismark --multicore 4  --ambiguous --output_dir ./temp --temp_dir ./temp ~/genomes/Mus_musculus/UCSC/mm10/  -1 ${i} -2 ${i%R1_001_val_1.fq.gz}R2_001_val_2.fq.gz; done && for i in temp/*.bam; do samtools sort -@ 6 -o ${i%.bam}.sorted.bam $i; done && parallel -j 4 java -jar ~/tools/picard/picard.jar MarkDuplicates I={} O={.}.dedup.bam M={.}.dedup.txt REMOVE_DUPLICATES=true ::: temp/*.sorted.bam && for i in temp/*dup.bam; do ( samtools view -h $i | python2 ~/tools/DMRfinder/extract_CpG_data.py -i - -o output/${i%.bam}.cov ); done && python2 ~/tools/DMRfinder/combine_CpG_sites.py -o output/combined_def.csv output/*.cov )
+
+
+ # 3b. oneline command for single end (SE) reads. mouse genome and reference as example.
+time ( parallel -j 6 fastqc -o fastqc {} ::: fastq/*.gz && parallel -j 6 trim_galore -o temp --fastqc --fastqc_args \"-o fastqc\" --trim1 {} ::: fastq/*fastq.gz && for i in temp/*val_1.fq.gz; do bismark --multicore 4  --ambiguous --output_dir ./temp --temp_dir ./temp ~/genomes/Mus_musculus/UCSC/mm10/  -1 ${i} -2 ${i%R1_001_val_1.fq.gz}R2_001_val_2.fq.gz; done && for i in temp/*.bam; do samtools sort -@ 6 -o ${i%.bam}.sorted.bam $i; done && parallel -j 4 java -jar ~/tools/picard/picard.jar MarkDuplicates I={} O={.}.dedup.bam M={.}.dedup.txt REMOVE_DUPLICATES=true ::: temp/*.sorted.bam && for i in temp/*dup.bam; do ( samtools view -h $i | python2 ~/tools/DMRfinder/extract_CpG_data.py -i - -o output/${i%.bam}.cov ); done && python2 ~/tools/DMRfinder/combine_CpG_sites.py -o output/combined_def.csv output/*.cov )
+
