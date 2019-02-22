@@ -89,8 +89,18 @@ if (is.null(genome)) {
 # #####
 
 
-library(GenomicFeatures)
-library(ChIPseeker)
+
+if (!suppressMessages(suppressWarnings(require("GenomicFeatures")))) {
+  stop('Required package "GenomicFeatures" not installed.\n',
+       '  For installation information, please see:\n',
+       '  https://bioconductor.org/packages/release/bioc/html/GenomicFeatures.html\n')
+}
+if (!suppressMessages(suppressWarnings(require("ChIPseeker")))) {
+  stop('Required package "ChIPseeker" not installed.\n',
+       '  For installation information, please see:\n',
+       '  https://bioconductor.org/packages/release/bioc/html/ChIPseeker.html\n')
+}
+
 txdb <- makeTxDbFromGFF(genome, format='gtf')
 peak <- readPeakFile(infile)
 
