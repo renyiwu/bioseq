@@ -2,23 +2,25 @@
 #R Wu
 #Sept 2018
 
-#0.1 Build index for bismark. 
+# 0.1 Build index for bismark. 
 #perl ./Bismark/bismark_genome_preparation /path/to/genomes/Mus_musculus/UCSC/mm10/
 
-#1, sequencing adapter trimming
+# 1, sequencing adapter trimming
 trim_galore --paired --trim1  sample1_R1.fastq.gz sample1_R2.fastq.gz # for paired-end reads
 # or below for single end reads
 trim_galore --trim1 sample1_R1.fastq.gz
 
-#2, align reads (fastq files)
-#Single end reads
+# 2, align reads (fastq files)
+## A, single end reads
 for i in *.fastq.gz; do bismark --multicore 4  --ambiguous --ambig_bam /path/to/genome/ $i; done
+# for trimmed reads, file names are different. use
+# for i in *.fq.gz; do bismark --multicore 4  --ambiguous --ambig_bam /path/to/genome/ $i; done
 
-# For paired-end reads
+## B, for paired-end reads
 bismark --multicore 4  --ambiguous --ambig_bam /path/to/genome/ -1 sample1_R1.fastq.gz -2 sample1_R2.fastq.gz; done
 
 
-#3, Remove duplicates and extract CpGs.
+# 3, Remove duplicates and extract CpGs.
 
 # Option A. Dedup by Picard. (Recommended)
 samtools sort -o sample1.sorted.bam sample1.bam && java -jar /path/to/picard.jar MarkDuplicates I=sample1.sorted.bam O=sample1.rmdup.bam M=sample1.markdup.txt REMOVE_DUPLICATES=true
@@ -26,18 +28,39 @@ samtools sort -o sample1.sorted.bam sample1.bam && java -jar /path/to/picard.jar
 # Option B. Dedup by Bismark_dedup (Slower than Opthion A)
 ~/tools/Bismark/deduplicate_bismark -p --output_dir ./ --bam sample*.bam
 
-# Option C. dedup by samtools. (only for single end reads)
+# Option C. dedup by samtools. (for single end reads only )
 samtools sort -o sample1.sorted.bam sample1.bam && samtools rmdup -s sample1.sorted.bam smaple1.rmdup.bam
 
-#4. Extract coverage
+# 4. Extract coverage
 samtools view -h sample1.rmdup.bam | python ~/tools/DMRfinder/extract_CpG_data.py -i - -o sample1.cov
+# if default python version is 3.0 +, run 
+# samtools view -h sample1.rmdup.bam | python2 ~/tools/DMRfinder/extract_CpG_data.py -i - -o sample1.cov
 
 
-#5, combine cov files.
+ #5, combine cov files. # use python 2
 python /path/to/DMRfinder/combine_CpG_sites.py -o combined.csv sample*.cov
+# if default python version is 3.0 +, run 
+# python2 /path/to/DMRfinder/combine_CpG_sites.py -o combined.csv sample*.cov
 
-#6, DMRfinder
-Rscript /path/to/DMRfinder/findDMRs.r -i combined.csv -o combined_dmr.csv -n Control,Model,Treatment sample1,sample2 sample3,sample4 sample5,sample6
+
+# 6, DMRfinder
+Rscript /path/to/DMRfinder/findDMRs.r -s mu,diff,pval,fdr -d 0 -p 1 -t 1 -i combined.csv -o combined_dmr.csv -n Control,Model,Treatment sample1,sample2 sample3,sample4 sample5,sample6
+
+  Options:
+    -n <str>      Comma-separated list of group names
+    -k <str>      Column names of <input> to copy to <output> (comma-
+                    separated; def. "chr, start, end, CpG")
+    -s <str>      Column names of DSS output to include in <output>
+                    (comma-separated; def. "mu, diff, pval")
+    -c <int>      Min. number of CpGs in a region (def. 3)
+    -d <float>    Min. methylation difference between sample groups
+                    ([0-1]; def. 0.10)
+    -p <float>    Max. p-value ([0-1]; def. 0.05)
+    -q <float>    Max. q-value ([0-1]; def. 1)
+    -up           Report only regions hypermethylated in later group
+    -down         Report only regions hypomethylated in later group
+    -t <int>      Report regions with at least <int> comparisons
+                    that are significant (def. 1)
 
 #7. Annotation
 Rscript /path/to/ChipAnno.r -x /path/to/genes.gtf -i combined_dmr.csv -o combined_dmr_anno.csv
@@ -53,4 +76,67 @@ https://github.com/jsh58/DMRfinder
 
 # ChipAnno.r on github
 https://github.com/renyiwu/bioseq/blob/master/ChipAnno.r
+
+DMRfinder/extract_CpG_data.py # written in python 2.
+Usage: python extract_CpG_data.py  [options]  -i <input>  -o <output>
+    -i <input>    SAM alignment file produced by Bismark (must have
+                    a header, 'XM' methylation strings, and 'XG'
+                    genome designations; can use '-' for stdin)
+    -o <output>   Output file listing counts of methylated and
+                    unmethylated CpGs, merged and sorted
+  Options:
+    -m <int>      Minimum coverage (methylation counts) to report a
+                    CpG site (def. 1)
+    -s            Report strand in third column of output
+    -n <file>     BED file listing regions for which to collect
+                    linked methylation data
+    -b            Memory-saving option (with coordinate-sorted SAM)
+    -e <file>     Output file listing ordered chromosomes
+
+
+DMRfinder/combine_CpG_sites.py # written in python 2.
+Usage: python combine_CpG_sites.py  [options]  -o <output>  [<input>]+
+    [<input>]+    One or more files, each listing methylation counts
+                    for a particular sample
+    -o <output>   Output file listing genomic regions and combined
+                    methylation counts for each sample
+  Options:
+    To consider a particular CpG:
+      -r <int>    Min. number of counts at a position (def. 3)
+      -s <int>    Min. number of samples with -r counts (def. 1)
+    To analyze a region of CpGs:
+      -d <int>    Max. distance between CpG sites (def. 100)
+      -c <int>    Min. number of CpGs in a region (def. 3)
+      -x <int>    Max. length of a region (def. 500)
+    To report a particular result:
+      -m <int>    Min. total counts in a region (def. 20)
+    Other:
+      -f          Report methylation fraction for each sample
+      -b          Memory-saving option (may take longer)
+      -e <file>   File listing ordered chromosome names (comma-
+                    separated; used only with -b option)
+
+
+DMRfinder/findDMRs.r
+Usage: Rscript findDMRs.r  [options]  -i <input>  -o <output>  \
+             <groupList1>  <groupList2>  [...]
+    -i <input>    File listing genomic regions and methylation counts
+    -o <output>   Output file listing methylation results
+    <groupList>   Comma-separated list of sample names (at least two
+                    such lists must be provided)
+  Options:
+    -n <str>      Comma-separated list of group names
+    -k <str>      Column names of <input> to copy to <output> (comma-
+                    separated; def. "chr, start, end, CpG")
+    -s <str>      Column names of DSS output to include in <output>
+                    (comma-separated; def. "mu, diff, pval")
+    -c <int>      Min. number of CpGs in a region (def. 3)
+    -d <float>    Min. methylation difference between sample groups
+                    ([0-1]; def. 0.10)
+    -p <float>    Max. p-value ([0-1]; def. 0.05)
+    -q <float>    Max. q-value ([0-1]; def. 1)
+    -up           Report only regions hypermethylated in later group
+    -down         Report only regions hypomethylated in later group
+    -t <int>      Report regions with at least <int> comparisons
+                    that are significant (def. 1)
 
