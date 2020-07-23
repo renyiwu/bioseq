@@ -1,5 +1,5 @@
-#Methyl-seq pipeline bismark -> DMRfinder all-in-one
-# trim_galore -> hisat2 -> picard -> featureCounts
+# Methyl-seq pipeline bismark -> DMRfinder all-in-one
+# RNA-seq: trim_galore -> hisat2 -> picard -> featureCounts
 # parallel on sop-1482 (64 GB RAM). (max picard instance is 4)
 # template is for mouse mm10. Change if work on other species.
 # R Wu. Feb 2019
@@ -24,6 +24,12 @@ ls fastq/*.gz | wc -l
 
 
 # 3a. oneline command for paired-end (PE) reads. mouse genome and reference as example.
+# on SOP-1482 with 16 cores and 64 GM RAM, recommended threads are below (on PE reads of 50M each)
+# parallel -j 8 trim_galore
+# bismark multicore 5
+# samtools sort -@ 6
+# parallel -j 4 java -jar picard.jar
+
 time ( parallel -j 6 fastqc -o fastqc {} ::: fastq/*.gz && parallel -j 6 trim_galore -o temp --fastqc --fastqc_args \"-o fastqc\" --paired --trim1 {}R1_001.fastq.gz {}R2_001.fastq.gz ::: $(ls fastq/*R1*fastq.gz | sed 's/R1_001.fastq.gz//') && for i in temp/*val_1.fq.gz; do bismark --multicore 4  --ambiguous --output_dir ./temp --temp_dir ./temp ~/genomes/Mus_musculus/UCSC/mm10/  -1 ${i} -2 ${i%R1_001_val_1.fq.gz}R2_001_val_2.fq.gz; done && for i in temp/*.bam; do samtools sort -@ 6 -o ${i%.bam}.sorted.bam $i; done && parallel -j 4 java -jar ~/tools/picard/picard.jar MarkDuplicates I={} O={.}.dedup.bam M={.}.dedup.txt REMOVE_DUPLICATES=true ::: temp/*.sorted.bam && for i in temp/*dup.bam; do ( samtools view -h $i | python2 ~/tools/DMRfinder/extract_CpG_data.py -i - -o output/$(basename -s .bam $i).cov ); done && python2 ~/tools/DMRfinder/combine_CpG_sites.py -o output/combined_def.tsv output/*.cov )
 
 
