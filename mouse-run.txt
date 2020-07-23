@@ -1,0 +1,25 @@
+# 9-11-2019
+# R wu
+# sop-1482
+
+# Kallisto
+# first install miniconda and bioconda
+# then run
+conda init
+# and optionally create an new environment
+conda create -n newname
+
+# then 
+conda activate newname
+
+# install kallisto
+conda install kallisto
+
+# download and save index files from offical Kallisto github site to ~/genome/
+# run basic quantification
+
+(kallisto) renyi@SOP-1482:/datastorage/renyi/RNA_March_2019/mouse/kallisto$ kallisto quant -i ~/genomes/Mus_musculus/Ensembl/GRCm38/Kallisto/transcriptome.idx -o output -b 30 -t 8 ../fastq/JB-6-4HNE-1_R1_001.fastq.gz ../fastq/JB-6-4HNE-1_R2_001.fastq.gz 
+
+# with pseudoalignment bam file
+(kallisto) renyi@SOP-1482:/datastorage/renyi/RNA_March_2019/mouse/kallisto$ kallisto quant -i ~/genomes/Mus_musculus/Ensembl/GRCm38/Kallisto/transcriptome.idx -o output2 -b 30 -t 8 --genomebam --gtf ~/genomes/Mus_musculus/Ensembl/GRCm38/Kallisto/Mus_musculus.GRCm38.96.gtf ../fastq/JB-6-4HNE-1_R1_001.fastq.gz ../fastq/JB-6-4HNE-1_R2_001.fastq.gz 
+

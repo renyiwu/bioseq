@@ -29,9 +29,14 @@ ls fastq/*.gz | wc -l
 # bismark multicore 5
 # samtools sort -@ 6
 # parallel -j 4 java -jar picard.jar
-
+# parallel -j 2 "samtools -> python extract-cpg"
 time ( parallel -j 6 fastqc -o fastqc {} ::: fastq/*.gz && parallel -j 6 trim_galore -o temp --fastqc --fastqc_args \"-o fastqc\" --paired --trim1 {}R1_001.fastq.gz {}R2_001.fastq.gz ::: $(ls fastq/*R1*fastq.gz | sed 's/R1_001.fastq.gz//') && for i in temp/*val_1.fq.gz; do bismark --multicore 4  --ambiguous --output_dir ./temp --temp_dir ./temp ~/genomes/Mus_musculus/UCSC/mm10/  -1 ${i} -2 ${i%R1_001_val_1.fq.gz}R2_001_val_2.fq.gz; done && for i in temp/*.bam; do samtools sort -@ 6 -o ${i%.bam}.sorted.bam $i; done && parallel -j 4 java -jar ~/tools/picard/picard.jar MarkDuplicates I={} O={.}.dedup.bam M={.}.dedup.txt REMOVE_DUPLICATES=true ::: temp/*.sorted.bam && for i in temp/*dup.bam; do ( samtools view -h $i | python2 ~/tools/DMRfinder/extract_CpG_data.py -i - -o output/$(basename -s .bam $i).cov ); done && python2 ~/tools/DMRfinder/combine_CpG_sites.py -o output/combined_def.tsv output/*.cov )
 
 
  # 3b. oneline command for single end (SE) reads. mouse genome and reference as example.
 time ( parallel -j 6 fastqc -o fastqc {} ::: fastq/*.gz && parallel -j 6 trim_galore -o temp --fastqc --fastqc_args \"-o fastqc\" --trim1 {} ::: fastq/*fastq.gz && for i in temp/*trimmed.fq.gz; do bismark --multicore 4  --ambiguous --output_dir ./temp --temp_dir ./temp ~/genomes/Mus_musculus/UCSC/mm10/  ${i}; done && for i in temp/*.bam; do samtools sort -@ 6 -o ${i%.bam}.sorted.bam $i; done && parallel -j 4 java -jar ~/tools/picard/picard.jar MarkDuplicates I={} O={.}.dedup.bam M={.}.dedup.txt REMOVE_DUPLICATES=true ::: temp/*.sorted.bam && for i in temp/*dup.bam; do ( samtools view -h $i | python2 ~/tools/DMRfinder/extract_CpG_data.py -i - -o output/$(basename -s .bam $i).cov ); done && python2 ~/tools/DMRfinder/combine_CpG_sites.py -o output/combined_def.tsv output/*.cov )
+
+
+# example for running multiple command in parallel.
+# for samtools-->extract_CpG pipeline, no more than 2 threads on SOP-1486, and no more than 6 on hal0114/amarel
+time (parallel -j 6 'echo "working on {}"; samtools view -h {} | python2 ~/tools/DMRfinder/extract_CpG_data.py -i - -o output/{/.}.cov ' ::: temp/*up.bam ; python2 ~/tools/DMRfinder/combine_CpG_sites.py -o output/combined_def.tsv output/*.csv )
